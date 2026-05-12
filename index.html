@@ -49,7 +49,7 @@ const START_MIN=480, END_MIN=1140, STEP=10; let events=[]; let editingId=null;
 const tbody=document.getElementById('tbody'); const dialog=document.getElementById('eventDialog');
 const title=document.getElementById('title'), startHour=document.getElementById('startHour'), startMinute=document.getElementById('startMinute'), endHour=document.getElementById('endHour'), endMinute=document.getElementById('endMinute'), category=document.getElementById('category'), color=document.getElementById('color');
 const mins=["00","10","20","30","40","50"];
-function fmtDate(d){return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')}.`}
+function fmtDate(d){const w=['일','월','화','수','목','금','토'][d.getDay()]; return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')}. (${w})`}
 function toTime(m){return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`}
 function toMin(h,m){return Number(h)*60+Number(m)}
 function inRange(v){return v>=START_MIN&&v<=END_MIN}
