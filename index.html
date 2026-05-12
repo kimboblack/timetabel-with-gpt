@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>타임박스</title>
+  <style>
+    :root { --bg:#008080; --panel:#c0c0c0; --line-dark:#404040; --line-light:#ffffff; --text:#000080; --work:#d9ecff; --consult:#ffe4d9; --rest:#dcf7dc; }
+    body{font-family:"MS Sans Serif",Tahoma,Arial,sans-serif;background:var(--bg);color:#000;margin:0;padding:24px}
+    .wrap{max-width:980px;margin:0 auto;background:var(--panel);padding:12px;border-top:2px solid var(--line-light);border-left:2px solid var(--line-light);border-right:2px solid var(--line-dark);border-bottom:2px solid var(--line-dark)}
+    .date{font-size:20px;font-weight:700;margin-bottom:10px;color:#000} h1{margin:0 0 12px;color:#000080;font-size:26px}
+    table{width:100%;border-collapse:collapse;background:#e0e0e0;border:2px solid var(--line-dark);table-layout:fixed}
+    th,td{border:1px solid #808080;padding:10px;text-align:center}
+    th{background:#000080;color:#fff}.time{width:110px;font-weight:700;background:#d4d0c8}.slot{cursor:pointer;height:44px;background:#efefef}.slot:hover{background:#fff7cc}
+    tbody td{height:44px;box-sizing:border-box;vertical-align:middle}
+    .event{border-radius:0;padding:6px;font-size:12px;line-height:1.2;display:block;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:2px solid var(--line-light);border-left:2px solid var(--line-light);border-right:2px solid var(--line-dark);border-bottom:2px solid var(--line-dark)}
+    .work{background:var(--work)}.consult{background:var(--consult)}.rest{background:var(--rest)}
+    .c1{background:#d4d0c8}.c2{background:#c0dcc0}.c3{background:#c0d8ff}.c4{background:#ffe0b2}.c5{background:#f8c8dc}
+    .muted{color:#222;font-size:12px}
+    dialog{border:none;padding:0;background:transparent}
+    .modal{padding:14px;background:var(--panel);border-top:2px solid var(--line-light);border-left:2px solid var(--line-light);border-right:2px solid var(--line-dark);border-bottom:2px solid var(--line-dark);min-width:380px}
+    .row{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.time-pick{display:flex;gap:8px}
+    select,input{padding:6px;border-top:2px solid var(--line-dark);border-left:2px solid var(--line-dark);border-right:2px solid var(--line-light);border-bottom:2px solid var(--line-light);background:#fff;border-radius:0}
+    .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+    button{padding:6px 12px;border-top:2px solid var(--line-light);border-left:2px solid var(--line-light);border-right:2px solid var(--line-dark);border-bottom:2px solid var(--line-dark);border-radius:0;cursor:pointer;background:#c0c0c0;color:#000}
+    button:active{border-top:2px solid var(--line-dark);border-left:2px solid var(--line-dark);border-right:2px solid var(--line-light);border-bottom:2px solid var(--line-light)}
+    .primary,.secondary,.danger{background:#c0c0c0;color:#000}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="date" id="today"></div>
+  <h1>타임박스</h1>
+  <table><colgroup><col style="width:11%"><col style="width:14.833%"><col style="width:14.833%"><col style="width:14.833%"><col style="width:14.833%"><col style="width:14.833%"><col style="width:14.833%"></colgroup><thead><tr><th>시간</th><th>00</th><th>10</th><th>20</th><th>30</th><th>40</th><th>50</th></tr></thead><tbody id="tbody"></tbody></table>
+</div>
+
+<dialog id="eventDialog"><form method="dialog" class="modal"><h3 id="dialogTitle">일정 등록</h3>
+  <div class="row"><label>일정제목</label><input id="title" required /></div>
+  <div class="row"><label>시작시간</label><div class="time-pick"><select id="startHour"></select><select id="startMinute"></select></div></div>
+  <div class="row"><label>종료시간</label><div class="time-pick"><select id="endHour"></select><select id="endMinute"></select></div></div>
+  <div class="row"><label>카테고리</label><select id="category"><option>업무</option><option>상담</option><option>휴식</option></select></div>
+  <div class="row"><label>블록 색상</label><select id="color"><option value="c1">클래식 그레이</option><option value="c2">세이지 그린</option><option value="c3">파스텔 블루</option><option value="c4">샌드 오렌지</option><option value="c5">로즈 핑크</option></select></div>
+  <div class="muted">시간 중복은 허용되지 않습니다.</div>
+  <div class="actions"><button type="button" class="secondary" id="cancelBtn">취소</button><button type="button" class="danger" id="deleteBtn" style="display:none">삭제</button><button type="button" class="primary" id="saveBtn">일정등록</button><button type="button" class="primary" id="updateBtn" style="display:none">수정</button></div>
+</form></dialog>
+
+<script>
+const START_MIN=480, END_MIN=1140, STEP=10; let events=[]; let editingId=null;
+const tbody=document.getElementById('tbody'); const dialog=document.getElementById('eventDialog');
+const title=document.getElementById('title'), startHour=document.getElementById('startHour'), startMinute=document.getElementById('startMinute'), endHour=document.getElementById('endHour'), endMinute=document.getElementById('endMinute'), category=document.getElementById('category'), color=document.getElementById('color');
+const mins=["00","10","20","30","40","50"];
+function fmtDate(d){return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')}.`}
+function toTime(m){return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`}
+function toMin(h,m){return Number(h)*60+Number(m)}
+function inRange(v){return v>=START_MIN&&v<=END_MIN}
+function overlap(a,b){return a.start<b.end&&b.start<a.end}
+function classBy(c){return c==='업무'?'work':c==='상담'?'consult':'rest'}
+function initTimeSelects(){
+  for(let h=8;h<=19;h++){const hh=String(h).padStart(2,'0'); startHour.add(new Option(hh,hh)); endHour.add(new Option(hh,hh));}
+  mins.forEach(m=>{startMinute.add(new Option(m,m)); endMinute.add(new Option(m,m));});
+}
+function setDialogMode(edit){document.getElementById('dialogTitle').textContent=edit?'일정 수정/삭제':'일정 등록'; saveBtn.style.display=edit?'none':'inline-block'; updateBtn.style.display=edit?'inline-block':'none'; deleteBtn.style.display=edit?'inline-block':'none';}
+function openCreate(start){editingId=null; setDialogMode(false); title.value=''; startHour.value=toTime(start).slice(0,2); startMinute.value=toTime(start).slice(3); const e=Math.min(start+STEP,END_MIN); endHour.value=toTime(e).slice(0,2); endMinute.value=toTime(e).slice(3); category.value='업무'; color.value='c1'; dialog.showModal();}
+function openEdit(id){const ev=events.find(e=>e.id===id); if(!ev) return; editingId=id; setDialogMode(true); title.value=ev.title; startHour.value=toTime(ev.start).slice(0,2); startMinute.value=toTime(ev.start).slice(3); endHour.value=toTime(ev.end).slice(0,2); endMinute.value=toTime(ev.end).slice(3); category.value=ev.category; color.value=ev.color||'c1'; dialog.showModal();}
+function validate(ev){ if(!ev.title.trim()) return '제목을 입력하세요.'; if(!(inRange(ev.start)&&inRange(ev.end))||ev.end<=ev.start) return '시간 범위를 확인하세요.'; if((ev.start-START_MIN)%STEP|| (ev.end-START_MIN)%STEP) return '10분 단위만 가능합니다.'; if(events.some(e=>e.id!==ev.id&&overlap(e,ev))) return '중복된 일정이 있습니다.'; return ''; }
+function renderTable(){
+  tbody.innerHTML='';
+  for(let h=8;h<19;h++){
+    const tr=document.createElement('tr'); const tcell=document.createElement('td'); tcell.className='time'; tcell.textContent=`${String(h).padStart(2,'0')}:00`; tr.appendChild(tcell);
+    const rowStarts=[h*60,h*60+10,h*60+20,h*60+30,h*60+40,h*60+50];
+    let i=0; while(i<6){
+      const st=rowStarts[i]; const ev=events.find(e=>st>=e.start&&st<e.end);
+      if(ev){ let span=1; while(i+span<6){const n=rowStarts[i+span]; if(!(n>=ev.start&&n<ev.end)) break; span++;}
+        const td=document.createElement('td'); td.colSpan=span; const block=document.createElement('div'); block.className=`event ${classBy(ev.category)} ${ev.color||'c1'}`;
+        block.textContent=ev.title; block.onclick=(e)=>{e.stopPropagation();openEdit(ev.id)}; td.appendChild(block); tr.appendChild(td); i+=span;
+      } else { const td=document.createElement('td'); td.className='slot'; td.onclick=()=>openCreate(st); tr.appendChild(td); i++; }
+    }
+    tbody.appendChild(tr);
+  }
+}
+function currentEvent(){return {id:editingId||crypto.randomUUID(),title:title.value,start:toMin(startHour.value,startMinute.value),end:toMin(endHour.value,endMinute.value),category:category.value,color:color.value}}
+function saveNew(){const ev=currentEvent(); const err=validate(ev); if(err) return alert(err); events.push(ev); dialog.close(); renderTable();}
+function updateExisting(){const ev=currentEvent(); const err=validate(ev); if(err) return alert(err); events=events.map(e=>e.id===editingId?ev:e); dialog.close(); renderTable();}
+function deleteExisting(){events=events.filter(e=>e.id!==editingId); dialog.close(); renderTable();}
+cancelBtn.onclick=()=>dialog.close(); saveBtn.onclick=saveNew; updateBtn.onclick=updateExisting; deleteBtn.onclick=deleteExisting;
+document.getElementById('today').textContent=fmtDate(new Date()); initTimeSelects(); renderTable();
+</script></body></html>
